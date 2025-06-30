@@ -121,10 +121,8 @@ function addWorkDays(start, workDays) {
 
 // タイムラインヘッダーの描画
 function renderTimeline() {
-    const monthRow = document.getElementById('month-row');
     const weekdayRow = document.getElementById('weekday-row');
     const dateRow = document.getElementById('date-row');
-    monthRow.innerHTML = '';
     weekdayRow.innerHTML = '';
     dateRow.innerHTML = '';
 
@@ -132,32 +130,12 @@ function renderTimeline() {
     document.querySelectorAll('.grid-line').forEach(line => line.remove());
 
     const endDate = new Date(startDate);
-    endDate.setFullYear(endDate.getFullYear() + 1);
-
-    let currentMonth = -1;
-    let monthStartIndex = 0;
-    let daysInCurrentMonth = 0;
+    endDate.setDate(endDate.getDate() + 365);
 
     for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
-        const month = d.getMonth();
         const date = d.getDate();
         const dayOfWeek = d.getDay();
         const dateStr = d.toISOString().split('T')[0];
-
-        // 月の表示
-        if (month !== currentMonth) {
-            if (currentMonth !== -1) {
-                const monthCell = document.createElement('div');
-                monthCell.className = 'month-cell';
-                monthCell.style.width = (daysInCurrentMonth * cellWidth) + 'px';
-                monthCell.textContent = new Date(d.getFullYear(), currentMonth).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
-                monthRow.appendChild(monthCell);
-            }
-            currentMonth = month;
-            monthStartIndex = dateRow.children.length;
-            daysInCurrentMonth = 0;
-        }
-        daysInCurrentMonth++;
 
         // 曜日の表示
         const weekdayCell = document.createElement('div');
@@ -205,14 +183,7 @@ function renderTimeline() {
         document.getElementById('task-rows').appendChild(gridLine);
     }
 
-    // 最後の月を追加
-    if (daysInCurrentMonth > 0) {
-        const monthCell = document.createElement('div');
-        monthCell.className = 'month-cell';
-        monthCell.style.width = (daysInCurrentMonth * cellWidth) + 'px';
-        monthCell.textContent = new Date(endDate.getFullYear(), currentMonth).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
-        monthRow.appendChild(monthCell);
-    }
+    // 月表示は不要なので何もしない
 }
 
 // 祝日の切り替え
