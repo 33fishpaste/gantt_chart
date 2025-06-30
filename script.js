@@ -419,11 +419,53 @@ function handleResizeStart(e, direction) {
     };
 
     const handleMouseUp = () => {
+        const usedDirection = resizeDirection;
         isResizing = false;
         resizeDirection = null;
-        
+
         if (task.type === 'group') {
+            const ms = 1000 * 60 * 60 * 24;
+            const startDiff = Math.round((task.start - originalStart) / ms);
+            const endDiff = Math.round((task.end - originalEnd) / ms);
+
+            if (usedDirection === 'left') {
+                if (startDiff < 0) {
+                    const first = getEarliestChild(task);
+                    if (first) {
+                        const w = calculateWorkDays(first.start, first.end);
+                        moveTaskWithWorkDays(first, startDiff, w);
+                    }
+                } else if (startDiff > 0) {
+                    const maxW = getMaxChildWorkDays(task);
+                    const duration = Math.floor((task.end - originalStart) / ms) + 1 - startDiff;
+                    const allowed = Math.max(0, duration - maxW);
+                    const actual = Math.min(startDiff, allowed);
+                    task.start = new Date(originalStart);
+                    task.start.setDate(task.start.getDate() + actual);
+                    shiftChildrenForStart(task, task.start);
+                }
+            } else {
+                if (endDiff > 0) {
+                    const last = getLatestChild(task);
+                    if (last) {
+                        const w = calculateWorkDays(last.start, last.end);
+                        moveTaskWithWorkDays(last, endDiff, w);
+                    }
+                } else if (endDiff < 0) {
+                    const maxW = getMaxChildWorkDays(task);
+                    const duration = Math.floor((originalEnd - task.start) / ms) + 1 + endDiff;
+                    const allowed = Math.max(0, duration - maxW);
+                    const actual = Math.max(endDiff, -allowed);
+                    task.end = new Date(originalEnd);
+                    task.end.setDate(task.end.getDate() + actual);
+                    shiftChildrenForEnd(task, task.end);
+                }
+            }
+
             updateGroupDates(task);
+            updateAncestorGroups(task);
+        } else {
+            updateAncestorGroups(task);
         }
 
         renderTasks();
@@ -458,6 +500,7 @@ function moveTaskWithWorkDays(task, daysDelta, workDays) {
         });
     }
 
+    updateAncestorGroups(task);
     renderTasks();
 }
 
@@ -493,6 +536,74 @@ function updateGroupDates(group) {
 
     group.start = new Date(minStart);
     group.end = new Date(maxEnd);
+}
+
+// 親グループの更新
+function findParent(task) {
+    if (!task.parent) return null;
+    return findTaskById(task.parent);
+}
+
+function updateAncestorGroups(task) {
+    let parent = findParent(task);
+    while (parent) {
+        updateGroupDates(parent);
+        parent = findParent(parent);
+    }
+}
+
+function getMaxChildWorkDays(group) {
+    if (!group.children || group.children.length === 0) return 0;
+    let max = 0;
+    group.children.forEach(c => {
+        const w = calculateWorkDays(c.start, c.end);
+        if (w > max) max = w;
+        if (c.type === 'group') {
+            const childMax = getMaxChildWorkDays(c);
+            if (childMax > max) max = childMax;
+        }
+    });
+    return max;
+}
+
+function getEarliestChild(group) {
+    if (!group.children || group.children.length === 0) return null;
+    return group.children.reduce((a, b) => (a.start < b.start ? a : b));
+}
+
+function getLatestChild(group) {
+    if (!group.children || group.children.length === 0) return null;
+    return group.children.reduce((a, b) => (a.end > b.end ? a : b));
+}
+
+function shiftChildrenForStart(group, newStart) {
+    const sorted = [...group.children].sort((a, b) => a.start - b.start);
+    let current = new Date(newStart);
+    sorted.forEach(child => {
+        if (child.start < current) {
+            const work = calculateWorkDays(child.start, child.end);
+            const delta = Math.round((current - child.start) / (1000 * 60 * 60 * 24));
+            moveTaskWithWorkDays(child, delta, work);
+        }
+        if (child.end > current) {
+            current = new Date(child.end);
+        }
+    });
+}
+
+function shiftChildrenForEnd(group, newEnd) {
+    const sorted = [...group.children].sort((a, b) => b.end - a.end);
+    let current = new Date(newEnd);
+    sorted.forEach(child => {
+        if (child.end > current) {
+            const work = calculateWorkDays(child.start, child.end);
+            const delta = Math.round((current - child.end) / (1000 * 60 * 60 * 24));
+            moveTaskWithWorkDays(child, delta, work);
+        }
+        if (child.start < current) {
+            current = new Date(child.start);
+        }
+    });
 }
 
 // グループの展開/折りたたみ
@@ -602,6 +713,12 @@ function submitTask() {
         editingTask.type = type;
         editingTask.start = start;
         editingTask.end = end;
+        const parent = editingTask.parent ? findTaskById(editingTask.parent) : null;
+        if (parent) {
+            updateGroupDates(parent);
+            updateAncestorGroups(parent);
+        }
+        updateAncestorGroups(editingTask);
     } else {
         const newTask = {
             id: nextTaskId++,
@@ -622,6 +739,7 @@ function submitTask() {
                 newTask.parent = parent.id;
                 parent.children.push(newTask);
                 updateGroupDates(parent);
+                updateAncestorGroups(parent);
             }
         } else {
             tasks.push(newTask);
