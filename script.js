@@ -67,7 +67,12 @@ let originalStart = null;
 let originalEnd = null;
 let originalWorkDays = 0;
 
-const startDate = new Date('2024-01-01');
+const startDate = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - 7);
+    return d;
+})();
 const cellWidth = 30; // 1日あたりのピクセル幅
 
 const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
