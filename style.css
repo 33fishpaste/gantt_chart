@@ -58,7 +58,7 @@ body {
     border-bottom: 2px solid #bdc3c7;
     z-index: 10;
     display: flex;
-    height: 90px;
+    height: 60px;
 }
 
 .month-row {
@@ -74,7 +74,7 @@ body {
     height: 30px;
     display: flex;
     position: absolute;
-    top: 30px;
+    top: 0;
     left: 0;
     right: 0;
 }
@@ -83,7 +83,7 @@ body {
     height: 30px;
     display: flex;
     position: absolute;
-    top: 60px;
+    top: 30px;
     left: 0;
     right: 0;
 }
@@ -157,7 +157,7 @@ body {
 
 #task-rows {
     position: relative;
-    margin-top: 90px; /* height of timeline header */
+    margin-top: 60px; /* height of timeline header */
 }
 
 .task-row {
@@ -267,10 +267,8 @@ body {
     pointer-events: none;
 }
 
-.grid-line.weekend {
-    width: 30px;
-}
-
+.grid-line.saturday,
+.grid-line.sunday,
 .grid-line.holiday {
     width: 30px;
 }
