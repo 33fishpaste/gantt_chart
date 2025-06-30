@@ -40,7 +40,7 @@
 
     <div class="modal" id="taskModal">
         <div class="modal-content">
-            <h2>新しいタスク</h2>
+            <h2 id="modalTitle">新しいタスク</h2>
             <div class="form-group">
                 <label>タスク名</label>
                 <input type="text" id="taskName" placeholder="タスク名を入力">
@@ -68,7 +68,7 @@
             </div>
             <div class="form-actions">
                 <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
-                <button class="btn btn-primary" onclick="addTask()">追加</button>
+                <button class="btn btn-primary" id="taskSubmitBtn" onclick="submitTask()">追加</button>
             </div>
         </div>
     </div>

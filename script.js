@@ -58,6 +58,7 @@ let tasks = [
 let holidays = new Set();
 
 let nextTaskId = 7;
+let editingTask = null;
 let draggedTask = null;
 let isResizing = false;
 let resizeDirection = null;
@@ -169,8 +170,10 @@ function renderTimeline() {
         dateCell.className = 'date-cell';
         dateCell.dataset.date = dateStr;
         
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-            dateCell.classList.add('weekend');
+        if (dayOfWeek === 0) {
+            dateCell.classList.add('sunday');
+        } else if (dayOfWeek === 6) {
+            dateCell.classList.add('saturday');
         }
         if (holidays.has(dateStr)) {
             dateCell.classList.add('holiday');
@@ -185,9 +188,12 @@ function renderTimeline() {
         gridLine.className = 'grid-line';
         gridLine.style.left = (dateRow.children.length - 1) * cellWidth + 'px';
         
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-            gridLine.classList.add('weekend');
-        } else if (holidays.has(dateStr)) {
+        if (dayOfWeek === 0) {
+            gridLine.classList.add('sunday');
+        } else if (dayOfWeek === 6) {
+            gridLine.classList.add('saturday');
+        }
+        if (holidays.has(dateStr)) {
             gridLine.classList.add('holiday');
         }
         
@@ -259,6 +265,8 @@ function renderTaskRecursive(task, level) {
     nameSpan.textContent = task.name;
     taskInfo.appendChild(nameSpan);
 
+    taskInfo.ondblclick = () => showEditTaskModal(task.id);
+
     document.getElementById('sidebar').appendChild(taskInfo);
 
     // ガントチャートのタスクバー
@@ -318,6 +326,7 @@ function createTaskBar(task) {
 
     // イベントリスナー
     taskBar.addEventListener('mousedown', handleTaskMouseDown);
+    taskBar.addEventListener('dblclick', () => showEditTaskModal(task.id));
     leftHandle.addEventListener('mousedown', (e) => handleResizeStart(e, 'left'));
     rightHandle.addEventListener('mousedown', (e) => handleResizeStart(e, 'right'));
 
@@ -505,8 +514,11 @@ function findTaskById(id) {
 
 // モーダル表示
 function showAddTaskModal() {
+    editingTask = null;
     const modal = document.getElementById('taskModal');
     const parentSelect = document.getElementById('parentGroup');
+    document.getElementById('modalTitle').textContent = '新しいタスク';
+    document.getElementById('taskSubmitBtn').textContent = '追加';
     
     // 親グループの選択肢を更新
     parentSelect.innerHTML = '<option value="">なし</option>';
@@ -529,15 +541,46 @@ function showAddTaskModal() {
     modal.style.display = 'flex';
 }
 
+function showEditTaskModal(taskId) {
+    const task = findTaskById(taskId);
+    if (!task) return;
+    editingTask = task;
+
+    const modal = document.getElementById('taskModal');
+    const parentSelect = document.getElementById('parentGroup');
+
+    document.getElementById('modalTitle').textContent = 'タスクの編集';
+    document.getElementById('taskSubmitBtn').textContent = '更新';
+
+    parentSelect.innerHTML = '<option value="">なし</option>';
+    tasks.forEach(t => {
+        if (t.type === 'group') {
+            const option = document.createElement('option');
+            option.value = t.id;
+            option.textContent = t.name;
+            parentSelect.appendChild(option);
+        }
+    });
+
+    document.getElementById('taskName').value = task.name;
+    document.getElementById('taskType').value = task.type;
+    document.getElementById('parentGroup').value = task.parent || '';
+    document.getElementById('startDate').value = task.start.toISOString().split('T')[0];
+    document.getElementById('endDate').value = task.end.toISOString().split('T')[0];
+
+    modal.style.display = 'flex';
+}
+
 function closeModal() {
     document.getElementById('taskModal').style.display = 'none';
     document.getElementById('taskName').value = '';
     document.getElementById('taskType').value = 'task';
     document.getElementById('parentGroup').value = '';
+    editingTask = null;
 }
 
-// タスクの追加
-function addTask() {
+// タスクの追加または更新
+function submitTask() {
     const name = document.getElementById('taskName').value;
     const type = document.getElementById('taskType').value;
     const parentId = document.getElementById('parentGroup').value;
@@ -549,28 +592,35 @@ function addTask() {
         return;
     }
 
-    const newTask = {
-        id: nextTaskId++,
-        name: name,
-        type: type,
-        start: start,
-        end: end,
-        expanded: true
-    };
-
-    if (type === 'group') {
-        newTask.children = [];
-    }
-
-    if (parentId) {
-        const parent = findTaskById(parseInt(parentId));
-        if (parent && parent.children) {
-            newTask.parent = parent.id;
-            parent.children.push(newTask);
-            updateGroupDates(parent);
-        }
+    if (editingTask) {
+        editingTask.name = name;
+        editingTask.type = type;
+        editingTask.start = start;
+        editingTask.end = end;
     } else {
-        tasks.push(newTask);
+        const newTask = {
+            id: nextTaskId++,
+            name: name,
+            type: type,
+            start: start,
+            end: end,
+            expanded: true
+        };
+
+        if (type === 'group') {
+            newTask.children = [];
+        }
+
+        if (parentId) {
+            const parent = findTaskById(parseInt(parentId));
+            if (parent && parent.children) {
+                newTask.parent = parent.id;
+                parent.children.push(newTask);
+                updateGroupDates(parent);
+            }
+        } else {
+            tasks.push(newTask);
+        }
     }
 
     renderTasks();
@@ -583,6 +633,60 @@ function setupEventListeners() {
     document.getElementById('taskModal').addEventListener('click', (e) => {
         if (e.target.id === 'taskModal') {
             closeModal();
+        }
+    });
+
+    const sidebar = document.getElementById('sidebar');
+    const ganttContainer = document.querySelector('.gantt-container');
+
+    // スクロール同期
+    let syncing = false;
+    sidebar.addEventListener('scroll', () => {
+        if (syncing) return;
+        syncing = true;
+        ganttContainer.scrollTop = sidebar.scrollTop;
+        syncing = false;
+    });
+    ganttContainer.addEventListener('scroll', () => {
+        if (syncing) return;
+        syncing = true;
+        sidebar.scrollTop = ganttContainer.scrollTop;
+        syncing = false;
+    });
+
+    // パン操作
+    let panning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panScrollLeft = 0;
+    let panScrollTop = 0;
+
+    ganttContainer.addEventListener('mousedown', (e) => {
+        if (e.target !== ganttContainer && e.target.closest('.task-bar')) {
+            return;
+        }
+        panning = true;
+        ganttContainer.classList.add('panning');
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panScrollLeft = ganttContainer.scrollLeft;
+        panScrollTop = ganttContainer.scrollTop;
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!panning) return;
+        const dx = e.clientX - panStartX;
+        const dy = e.clientY - panStartY;
+        ganttContainer.scrollLeft = panScrollLeft - dx;
+        ganttContainer.scrollTop = panScrollTop - dy;
+        sidebar.scrollTop = ganttContainer.scrollTop;
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (panning) {
+            panning = false;
+            ganttContainer.classList.remove('panning');
         }
     });
 }
