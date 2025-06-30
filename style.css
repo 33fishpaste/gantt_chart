@@ -153,7 +153,11 @@ body {
 .gantt-grid {
     position: relative;
     min-width: 3000px;
-    padding-top: 90px;
+}
+
+#task-rows {
+    position: relative;
+    margin-top: 90px; /* height of timeline header */
 }
 
 .task-row {
