@@ -44,6 +44,11 @@ body {
     overflow: auto;
     position: relative;
     background-color: white;
+    cursor: grab;
+}
+
+.gantt-container.panning {
+    cursor: grabbing;
 }
 
 .timeline-header {
@@ -121,9 +126,20 @@ body {
     background-color: #f8f9fa;
 }
 
-.holiday {
+.date-cell.saturday,
+.grid-line.saturday {
+    background-color: #e3f2fd;
+}
+
+.date-cell.sunday,
+.grid-line.sunday {
     background-color: #ffebee;
-    color: #d32f2f;
+}
+
+.holiday,
+.grid-line.holiday {
+    background-color: #e8f5e9;
+    color: #2e7d32;
 }
 
 .weekday-cell.sunday {
@@ -248,12 +264,10 @@ body {
 }
 
 .grid-line.weekend {
-    background-color: #f8f9fa;
     width: 30px;
 }
 
 .grid-line.holiday {
-    background-color: #ffebee;
     width: 30px;
 }
 
